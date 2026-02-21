@@ -657,18 +657,13 @@
         }
 
         // ========================================
-        // 🔐 Initialize Client Connection & Session
+        // 🔐 Initialize Client Connection
         // ========================================
         import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 
         let client;
         let history = [];
         let isProcessing = false;
-
-        // ✅ UNIQUE USER SESSION
-        const session_id = localStorage.getItem("session_id") || crypto.randomUUID();
-        localStorage.setItem("session_id", session_id);
-        console.log("[Session] ID:", session_id);
 
         // Initialize connection
         async function initClient() {
@@ -766,15 +761,12 @@
             identifyBtn.disabled = true;
 
             try {
-                // ✅ SEND SESSION_ID WITH REQUEST
                 const result = await client.predict("/identify_crop", {
-                    image_file: file,
-                    session_id: session_id
+                    image_file: file
                 });
 
-                document.getElementById("result").innerText = result.data[0] || result.data;
+                document.getElementById("result").innerText = result.data;
                 document.getElementById("resultSection").classList.add("show");
-                console.log("[Crop] Identified:", result.data);
                 
             } catch (error) {
                 console.error("[v0] Identification error:", error);
@@ -799,9 +791,9 @@
             localStorage.removeItem(CHAT_STORAGE_KEY);
         }
 
-        // Clear chat history on page load
+        // Clear chat history on page load - IMPORTANT!
         clearChatHistory();
-        history = [];
+        history = []; // Reset to empty array
 
         // Initialize empty chatbox
         const chatbox = document.getElementById("chatbox");
@@ -835,15 +827,15 @@
             chatbox.scrollTop = chatbox.scrollHeight;
 
             try {
-                // Get the crop result from the result div
-                const cropData = document.getElementById("result").innerText || null;
+                // Reconnect client to get fresh session if history is empty
+                if (history.length === 0) {
+                    client = await Client.connect("selva1909/Crop-Prediction");
+                    console.log("[Chat] Fresh connection established");
+                }
 
-                // ✅ SEND SESSION_ID AND CROP_STATE WITH REQUEST
                 const result = await client.predict("/chat_ui", {
                     message: message,
-                    history: history,
-                    crop_state: cropData,
-                    session_id: session_id
+                    history: history
                 });
 
                 history = result.data[0];
@@ -856,7 +848,6 @@
                 chatbox.appendChild(botMsg);
 
                 chatbox.scrollTop = chatbox.scrollHeight;
-                console.log("[Chat] Message sent with session:", session_id);
 
             } catch (error) {
                 console.error("[v0] Chat error:", error);
@@ -882,11 +873,13 @@
         window.clearChat = async function () {
             clearChatHistory();
             history = [];
+            // Reconnect to get fresh session
+            client = await Client.connect("selva1909/Crop-Prediction");
             const chatbox = document.getElementById("chatbox");
             chatbox.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💭</div><p>Start a conversation with your farming expert</p></div>';
             chatbox.classList.add("empty-state");
             document.getElementById("message").value = "";
-            console.log("[Chat] Session cleared");
+            console.log("[Chat] Session cleared and reconnected");
         };
 
         // ========================================
