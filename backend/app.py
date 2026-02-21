@@ -10,26 +10,24 @@ from openai import AzureOpenAI
 
 load_dotenv()
 
-# ======================================
+# =====================================
 # AZURE CONFIG
-# ======================================
-AZURE_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
-AZURE_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
-AZURE_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-AZURE_API_VERSION = os.getenv(
-    "AZURE_OPENAI_API_VERSION",
-    "2024-02-15-preview"
-)
-
+# =====================================
 client = AzureOpenAI(
-    api_key=AZURE_API_KEY,
-    api_version=AZURE_API_VERSION,
-    azure_endpoint=AZURE_ENDPOINT
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    api_version=os.getenv(
+        "AZURE_OPENAI_API_VERSION",
+        "2024-02-15-preview"
+    ),
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
 )
 
-# ======================================
-# IMAGE CACHE (SAFE GLOBAL)
-# ======================================
+AZURE_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+
+# =====================================
+# SESSION MEMORY (API SAFE ✅)
+# =====================================
+user_sessions = {}
 crop_cache = {}
 
 
@@ -37,33 +35,31 @@ def get_hash(image_bytes):
     return hashlib.md5(image_bytes).hexdigest()
 
 
-# ======================================
-# IDENTIFY CROP
-# ======================================
-def identify_crop(image_file, crop_state):
+# =====================================
+# 🌾 IDENTIFY CROP
+# =====================================
+def identify_crop(image_file, session_id):
 
     if image_file is None:
-        return "❌ Please upload crop image.", crop_state
+        return "❌ Upload crop image."
 
     try:
         img = Image.open(image_file)
-
-        if img.width > 1000 or img.height > 1000:
-            img.thumbnail((1000, 1000))
 
         if img.mode != "RGB":
             img = img.convert("RGB")
 
         buffer = io.BytesIO()
-        img.save(buffer, format="JPEG", quality=85)
+        img.save(buffer, format="JPEG")
 
         image_bytes = buffer.getvalue()
         image_hash = get_hash(image_bytes)
 
-        # ✅ CACHE IMAGE RESULT
+        # ✅ IMAGE CACHE
         if image_hash in crop_cache:
             result = crop_cache[image_hash]
-            return f"🌾 Cached Crop Result:\n\n{result}", result
+            user_sessions[session_id] = result
+            return result
 
         image_base64 = base64.b64encode(image_bytes).decode()
 
@@ -72,144 +68,111 @@ def identify_crop(image_file, crop_state):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert agricultural scientist."
+                    "content":
+                    "Identify crop only. No greeting."
                 },
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text",
-                         "text": "Identify this crop and describe briefly."},
+                        {
+                            "type": "text",
+                            "text":
+                            "Return strictly:\n"
+                            "Crop Name:\n"
+                            "Description:"
+                        },
                         {
                             "type": "image_url",
                             "image_url": {
                                 "url":
                                 f"data:image/jpeg;base64,{image_base64}"
-                            },
-                        },
-                    ],
-                },
+                            }
+                        }
+                    ]
+                }
             ],
-            max_tokens=400,
+            max_tokens=300
         )
 
         result = response.choices[0].message.content
-        crop_cache[image_hash] = result
 
-        return f"🌾 Crop Identification:\n\n{result}", result
+        crop_cache[image_hash] = result
+        user_sessions[session_id] = result
+
+        return result
 
     except Exception:
-        return traceback.format_exc(), crop_state
+        return traceback.format_exc()
 
 
-# ======================================
-# CHATBOT
-# ======================================
-def ask_chatbot(message, crop_state):
-
-    if crop_state is None or crop_state == "":
-        return "⚠️ Please upload and identify a crop first to ask questions."
-
-    context = f"\nCrop Info:\n{crop_state}\n"
-
-    response = client.chat.completions.create(
-        model=AZURE_DEPLOYMENT,
-        messages=[
-            {
-                "role": "system",
-                "content":
-                "You are an agricultural advisor. Use simple farmer language."
-            },
-            {
-                "role": "user",
-                "content": context + message
-            },
-        ],
-        max_tokens=500,
-    )
-
-    return response.choices[0].message.content
-
-
-# ======================================
-# CHAT UI
-# ======================================
-def chat_ui(message, history, crop_state):
+# =====================================
+# 💬 CHATBOT
+# =====================================
+def chat_ui(message, history, session_id):
 
     if history is None:
         history = []
 
-    if not message:
-        return history, "", crop_state
+    crop_info = user_sessions.get(session_id)
 
-    reply = ask_chatbot(message, crop_state)
+    if not crop_info:
+        reply = "⚠️ Upload and identify crop first."
+    else:
+        response = client.chat.completions.create(
+            model=AZURE_DEPLOYMENT,
+            messages=[
+                {
+                    "role": "system",
+                    "content":
+                    "You are a farming advisor."
+                },
+                {
+                    "role": "user",
+                    "content":
+                    f"{crop_info}\n\nQuestion:{message}"
+                }
+            ],
+            max_tokens=500
+        )
+
+        reply = response.choices[0].message.content
 
     history.append([message, reply])
 
-    return history, "", crop_state
+    return history, ""
 
 
-# ======================================
-# UI
-# ======================================
-with gr.Blocks(title="Crop Prediction") as demo:
+# =====================================
+# UI (FOR HF API ENDPOINTS)
+# =====================================
+with gr.Blocks() as demo:
 
-    gr.Markdown("# 🌾 Smart Crop Identification & Farming Assistant")
+    session_id = gr.Textbox(visible=False)
 
-    # ✅ SESSION MEMORY
-    crop_state = gr.State(None)
+    gr.Markdown("# 🌾 Crop Identification API")
 
-    with gr.Row():
+    image_input = gr.Image(type="filepath")
+    identify_btn = gr.Button("Identify Crop")
+    image_output = gr.Textbox()
 
-        # LEFT
-        with gr.Column():
-            image_input = gr.Image(
-                type="filepath",
-                label="Upload Crop Image"
-            )
+    chatbot = gr.Chatbot()
+    msg = gr.Textbox()
+    send = gr.Button("Send")
 
-            identify_btn = gr.Button("🔍 Identify Crop")
-
-            image_output = gr.Textbox(
-                lines=10,
-                label="Result"
-            )
-
-        # RIGHT
-        with gr.Column():
-            chatbot = gr.Chatbot(height=400)
-            msg = gr.Textbox(
-                placeholder="Ask about soil, disease, irrigation..."
-            )
-            send = gr.Button("Send")
-
-    # Identify
     identify_btn.click(
         identify_crop,
-        [image_input, crop_state],
-        [image_output, crop_state]
+        [image_input, session_id],
+        image_output,
+        api_name="/identify_crop"
     )
 
-    # Chat
     send.click(
         chat_ui,
-        [msg, chatbot, crop_state],
-        [chatbot, msg, crop_state]
-    )
-
-    msg.submit(
-        chat_ui,
-        [msg, chatbot, crop_state],
-        [chatbot, msg, crop_state]
+        [msg, chatbot, session_id],
+        [chatbot, msg],
+        api_name="/chat_ui"
     )
 
 
-# ======================================
-# LAUNCH
-# ======================================
 if __name__ == "__main__":
-    demo.launch(
-        server_name="0.0.0.0",
-        server_port=7860,
-        pwa=True,
-        favicon_path="favicon.ico"
-    )
+    demo.launch(server_name="0.0.0.0", server_port=7860)
