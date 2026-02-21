@@ -10,9 +10,9 @@ from openai import AzureOpenAI
 
 load_dotenv()
 
-# =====================================
+# ===============================
 # AZURE CONFIG
-# =====================================
+# ===============================
 client = AzureOpenAI(
     api_key=os.getenv("AZURE_OPENAI_API_KEY"),
     api_version=os.getenv(
@@ -24,10 +24,9 @@ client = AzureOpenAI(
 
 AZURE_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT")
 
-# =====================================
-# SESSION MEMORY (API SAFE ✅)
-# =====================================
-user_sessions = {}
+# ===============================
+# IMAGE CACHE ONLY
+# ===============================
 crop_cache = {}
 
 
@@ -35,31 +34,33 @@ def get_hash(image_bytes):
     return hashlib.md5(image_bytes).hexdigest()
 
 
-# =====================================
-# 🌾 IDENTIFY CROP
-# =====================================
-def identify_crop(image_file, session_id):
+# ===============================
+# IDENTIFY CROP
+# ===============================
+def identify_crop(image_file, crop_state):
 
     if image_file is None:
-        return "❌ Upload crop image."
+        return "❌ Please upload a crop image.", crop_state
 
     try:
         img = Image.open(image_file)
+
+        if img.width > 1000 or img.height > 1000:
+            img.thumbnail((1000, 1000))
 
         if img.mode != "RGB":
             img = img.convert("RGB")
 
         buffer = io.BytesIO()
-        img.save(buffer, format="JPEG")
+        img.save(buffer, format="JPEG", quality=85)
 
         image_bytes = buffer.getvalue()
         image_hash = get_hash(image_bytes)
 
-        # ✅ IMAGE CACHE
+        # ✅ cache
         if image_hash in crop_cache:
             result = crop_cache[image_hash]
-            user_sessions[session_id] = result
-            return result
+            return f"🌾 Cached Crop Result:\n\n{result}", result
 
         image_base64 = base64.b64encode(image_bytes).decode()
 
@@ -69,7 +70,7 @@ def identify_crop(image_file, session_id):
                 {
                     "role": "system",
                     "content":
-                    "Identify crop only. No greeting."
+                    "You are an expert agricultural scientist."
                 },
                 {
                     "role": "user",
@@ -77,102 +78,135 @@ def identify_crop(image_file, session_id):
                         {
                             "type": "text",
                             "text":
-                            "Return strictly:\n"
-                            "Crop Name:\n"
-                            "Description:"
+                            "Identify this crop briefly."
                         },
                         {
                             "type": "image_url",
                             "image_url": {
                                 "url":
                                 f"data:image/jpeg;base64,{image_base64}"
-                            }
-                        }
-                    ]
-                }
+                            },
+                        },
+                    ],
+                },
             ],
-            max_tokens=300
+            max_tokens=300,
         )
 
         result = response.choices[0].message.content
-
         crop_cache[image_hash] = result
-        user_sessions[session_id] = result
 
-        return result
+        # ✅ SAVE ONLY IN SESSION
+        return f"🌾 Crop Identification:\n\n{result}", result
 
     except Exception:
-        return traceback.format_exc()
+        return traceback.format_exc(), crop_state
 
 
-# =====================================
-# 💬 CHATBOT
-# =====================================
-def chat_ui(message, history, session_id):
+# ===============================
+# CHATBOT
+# ===============================
+def ask_chatbot(message, crop_state):
+
+    if not crop_state:
+        return "⚠️ Please upload and identify a crop image first."
+
+    context = f"\nCrop Info:\n{crop_state}\n"
+
+    response = client.chat.completions.create(
+        model=AZURE_DEPLOYMENT,
+        messages=[
+            {
+                "role": "system",
+                "content":
+                "You are a farming advisor. Give direct practical answers."
+            },
+            {
+                "role": "user",
+                "content": context + message
+            }
+        ],
+        max_tokens=400,
+    )
+
+    return response.choices[0].message.content
+
+
+# ===============================
+# CHAT UI
+# ===============================
+def chat_ui(message, history, crop_state):
 
     if history is None:
         history = []
 
-    crop_info = user_sessions.get(session_id)
+    if not message:
+        return history, "", crop_state
 
-    if not crop_info:
-        reply = "⚠️ Upload and identify crop first."
-    else:
-        response = client.chat.completions.create(
-            model=AZURE_DEPLOYMENT,
-            messages=[
-                {
-                    "role": "system",
-                    "content":
-                    "You are a farming advisor."
-                },
-                {
-                    "role": "user",
-                    "content":
-                    f"{crop_info}\n\nQuestion:{message}"
-                }
-            ],
-            max_tokens=500
-        )
-
-        reply = response.choices[0].message.content
+    reply = ask_chatbot(message, crop_state)
 
     history.append([message, reply])
 
-    return history, ""
+    return history, "", crop_state
 
 
-# =====================================
-# UI (FOR HF API ENDPOINTS)
-# =====================================
-with gr.Blocks() as demo:
+# ===============================
+# UI
+# ===============================
+with gr.Blocks(title="Crop Prediction") as demo:
 
-    session_id = gr.Textbox(visible=False)
+    gr.Markdown(
+        "# 🌾 Smart Crop Identification & Farming Assistant"
+    )
 
-    gr.Markdown("# 🌾 Crop Identification API")
+    # ✅ SESSION MEMORY
+    crop_state = gr.State(None)
 
-    image_input = gr.Image(type="filepath")
-    identify_btn = gr.Button("Identify Crop")
-    image_output = gr.Textbox()
+    with gr.Row():
 
-    chatbot = gr.Chatbot()
-    msg = gr.Textbox()
-    send = gr.Button("Send")
+        with gr.Column():
+            image_input = gr.Image(
+                type="filepath",
+                label="Upload Crop Image"
+            )
+
+            identify_btn = gr.Button("🔍 Identify Crop")
+
+            image_output = gr.Textbox(
+                lines=10,
+                label="Result"
+            )
+
+        with gr.Column():
+            chatbot = gr.Chatbot(height=400)
+            msg = gr.Textbox(
+                placeholder="Ask about soil, disease..."
+            )
+            send = gr.Button("Send")
 
     identify_btn.click(
         identify_crop,
-        [image_input, session_id],
-        image_output,
-        api_name="/identify_crop"
+        [image_input, crop_state],
+        [image_output, crop_state]
     )
 
     send.click(
         chat_ui,
-        [msg, chatbot, session_id],
-        [chatbot, msg],
-        api_name="/chat_ui"
+        [msg, chatbot, crop_state],
+        [chatbot, msg, crop_state]
+    )
+
+    msg.submit(
+        chat_ui,
+        [msg, chatbot, crop_state],
+        [chatbot, msg, crop_state]
     )
 
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+        pwa=True,
+        favicon_path="favicon.ico"
+    )
