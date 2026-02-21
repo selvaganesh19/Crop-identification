@@ -827,15 +827,13 @@
             chatbox.scrollTop = chatbox.scrollHeight;
 
             try {
-                // Reconnect client to get fresh session if history is empty
-                if (history.length === 0) {
-                    client = await Client.connect("selva1909/Crop-Prediction");
-                    console.log("[Chat] Fresh connection established");
-                }
+                // Get the crop result from the result div
+                const cropData = document.getElementById("result").innerText || null;
 
                 const result = await client.predict("/chat_ui", {
                     message: message,
-                    history: history
+                    history: history,
+                    crop_state: cropData
                 });
 
                 history = result.data[0];

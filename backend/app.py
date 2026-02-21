@@ -106,8 +106,8 @@ def identify_crop(image_file, crop_state):
 # ======================================
 def ask_chatbot(message, crop_state):
 
-    if crop_state is None:
-        return "⚠️ Please upload and identify crop first."
+    if crop_state is None or crop_state == "":
+        return "⚠️ Please upload and identify a crop first to ask questions."
 
     context = f"\nCrop Info:\n{crop_state}\n"
 
