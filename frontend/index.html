@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crop Identification Assistant</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Identify crops instantly with AI • Get expert farming advice • Real-time crop analysis">
+    <meta name="theme-color" content="#1b5e20">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Crop Analyzer">
+    <meta name="msapplication-TileColor" content="#1b5e20">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="./icons/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/android-icon-192x192.png">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="./icons/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="./icons/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="./icons/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="./icons/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="./icons/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="./icons/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="./icons/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="./icons/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-icon-180x180.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1b5e20;
+            --secondary: #66bb6a;
+            --accent: #ffd54f;
+            --light: #f9f9f9;
+            --text: #212121;
+            --text-light: #757575;
+            --border: #e0e0e0;
+            --success: #4caf50;
+            --warning: #ff9800;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+            min-height: 100vh;
+            padding: 16px;
+            color: var(--text);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+            animation: slideDown 0.6s ease-out;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--secondary);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        header h1 {
+            font-size: 2.8em;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            font-size: 1em;
+            color: var(--text-light);
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 24px;
+            margin-bottom: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 28px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            animation: fadeIn 0.6s ease-out;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .card:hover {
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card h2 {
+            color: var(--primary);
+            font-size: 1.6em;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        /* Upload Section */
+        .upload-area {
+            border: 2px dashed var(--secondary);
+            border-radius: 16px;
+            padding: 48px 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(135deg, rgba(102, 187, 106, 0.04) 0%, rgba(27, 94, 32, 0.02) 100%);
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 187, 106, 0.1) 0%, transparent 70%);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(20px, -20px); }
+        }
+
+        .upload-area.dragover {
+            background: linear-gradient(135deg, rgba(27, 94, 32, 0.08) 0%, rgba(102, 187, 106, 0.06) 100%);
+            border-color: var(--primary);
+            transform: scale(1.01);
+            box-shadow: 0 8px 24px rgba(27, 94, 32, 0.15);
+        }
+
+        .upload-area input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 16px;
+            animation: bounce 3s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-12px);
+            }
+        }
+
+        .upload-area p {
+            color: var(--text);
+            font-size: 1.1em;
+            margin-bottom: 8px;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-area .hint {
+            color: var(--text-light);
+            font-size: 0.95em;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Preview Image */
+        #imagePreview {
+            max-width: 100%;
+            height: auto;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            max-height: 420px;
+            object-fit: cover;
+            box-shadow: 0 8px 32px rgba(27, 94, 32, 0.15);
+            display: none;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        #imagePreview.show {
+            display: block;
+            animation: zoomIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            font-size: 0.95em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            min-width: 140px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(27, 94, 32, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(27, 94, 32, 0.35);
+        }
+
+        .btn-primary:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--accent);
+            color: var(--text);
+            box-shadow: 0 2px 8px rgba(255, 213, 79, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: #ffca28;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(255, 213, 79, 0.3);
+        }
+
+        .btn-reset {
+            background: #f5f5f5;
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+
+        .btn-reset:hover {
+            background: #eeeeee;
+            border-color: var(--secondary);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Result Section */
+        .result-section {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(76, 175, 80, 0.02) 100%);
+            border-left: 4px solid var(--success);
+            padding: 24px;
+            border-radius: 14px;
+            margin-top: 24px;
+            display: none;
+            border: 1px solid rgba(76, 175, 80, 0.15);
+        }
+
+        .result-section.show {
+            display: block;
+            animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .result-section h3 {
+            color: var(--primary);
+            margin-bottom: 14px;
+            font-size: 1.15em;
+            font-weight: 600;
+        }
+
+        #result {
+            background: rgba(255, 255, 255, 0.6);
+            padding: 16px;
+            border-radius: 10px;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.95em;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(45, 80, 22, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Chatbot Section */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 550px;
+        }
+
+        #chatbox {
+            flex: 1;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            overflow-y: auto;
+            background: linear-gradient(135deg, rgba(248, 248, 248, 0.5) 0%, rgba(255, 255, 255, 0.8) 100%);
+            margin-bottom: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-message {
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 85%;
+            word-wrap: break-word;
+            line-height: 1.5;
+            animation: messageSlide 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 0.95em;
+        }
+
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 16px 16px 4px 16px;
+            box-shadow: 0 4px 12px rgba(27, 94, 32, 0.2);
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background: white;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 16px 16px 16px 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .chat-input-section {
+            display: flex;
+            gap: 10px;
+        }
+
+        #message {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.95em;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: inherit;
+            background: white;
+        }
+
+        #message:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(102, 187, 106, 0.15);
+            background: white;
+        }
+
+        .btn-send {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-width: 90px;
+            box-shadow: 0 4px 12px rgba(27, 94, 32, 0.25);
+        }
+
+        .btn-send:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(27, 94, 32, 0.35);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 32px 20px;
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .empty-state-icon {
+            font-size: 3.5em;
+            margin-bottom: 12px;
+            opacity: 0.7;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.03);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--secondary);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: rgba(102, 187, 106, 0.15);
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
+
+        .status-badge.success {
+            background: rgba(76, 175, 80, 0.15);
+            color: var(--success);
+        }
+
+        .status-badge.error {
+            background: rgba(244, 67, 54, 0.15);
+            color: #d32f2f;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2.2em;
+            }
+
+            .main-grid {
+                gap: 16px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .upload-area {
+                padding: 36px 24px;
+            }
+
+            .upload-icon {
+                font-size: 3em;
+            }
+
+            .chat-message {
+                max-width: 92%;
+            }
+
+            .card h2 {
+                font-size: 1.4em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>Crop Identification Assistant</h1>
+            <p>Identify crops instantly with AI • Get expert farming advice • Real-time crop analysis</p>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Crop Identification Card -->
+            <div class="card">
+                <h2>🌾 Crop Analyzer</h2>
+                
+                <!-- Upload Area -->
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📸</div>
+                    <p><strong>Drop your crop image here</strong></p>
+                    <p class="hint">or click to select from your device</p>
+                    <input type="file" id="imageInput" accept="image/*">
+                </div>
+
+                <!-- Image Preview -->
+                <img id="imagePreview" alt="Crop preview">
+
+                <!-- Action Buttons -->
+                <div class="button-group">
+                    <button class="btn-primary" onclick="identifyCrop()" id="identifyBtn">
+                        Analyze Crop
+                    </button>
+                    <button class="btn-reset" onclick="resetUpload()">
+                        Clear
+                    </button>
+                </div>
+
+                <!-- Result Section -->
+                <div class="result-section" id="resultSection">
+                    <h3>Analysis Results</h3>
+                    <div id="result"></div>
+                </div>
+            </div>
+
+            <!-- Chatbot Card -->
+            <div class="card">
+                <h2>💬 Farming Assistant</h2>
+                <p style="color: var(--text-light); margin-bottom: 14px; font-size: 0.9em;">Ask questions about diseases, soil, fertilizer, pest management, irrigation and more</p>
+                
+                <div class="chat-container">
+                    <div id="chatbox" class="empty-state">
+                        <div class="empty-state-icon">💭</div>
+                        <p>Start a conversation with your farming expert</p>
+                    </div>
+
+                    <div class="chat-input-section">
+                        <input 
+                            type="text" 
+                            id="message" 
+                            placeholder="Ask about your crops..."
+                            onkeypress="if(event.key==='Enter') sendMessage()"
+                        >
+                        <button class="btn-send" onclick="sendMessage()">Send</button>
+                        <button class="btn-send" style="background: #f5f5f5; color: #212121; margin-left: 8px;" onclick="clearChat()" title="Clear Chat">🗑️</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // ========================================
+        // 📱 REGISTER SERVICE WORKER
+        // ========================================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        // ========================================
+        // 🔐 Initialize Client Connection
+        // ========================================
+        import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
+
+        let client;
+        let history = [];
+        let isProcessing = false;
+
+        // Initialize connection
+        async function initClient() {
+            try {
+                client = await Client.connect("selva1909/Crop-Prediction");
+                console.log("[v0] Connected to HF Space successfully");
+            } catch (error) {
+                console.error("[v0] Connection failed:", error);
+                showError("Failed to connect to AI service. Please refresh the page.");
+            }
+        }
+
+        await initClient();
+
+        // ========================================
+        // 📤 DRAG & DROP FUNCTIONALITY
+        // ========================================
+        const uploadArea = document.getElementById("uploadArea");
+        const imageInput = document.getElementById("imageInput");
+        const imagePreview = document.getElementById("imagePreview");
+
+        // Prevent default drag behaviors
+        ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop area when item is dragged over it
+        ["dragenter", "dragover"].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+
+        ["dragleave", "drop"].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            uploadArea.classList.add("dragover");
+        }
+
+        function unhighlight(e) {
+            uploadArea.classList.remove("dragover");
+        }
+
+        // Handle dropped files
+        uploadArea.addEventListener("drop", handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            imageInput.files = files;
+            handleFileSelect();
+        }
+
+        // Handle click upload
+        uploadArea.addEventListener("click", () => imageInput.click());
+        imageInput.addEventListener("change", handleFileSelect);
+
+        // Display preview
+        function handleFileSelect() {
+            const file = imageInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.add("show");
+                };
+                reader.readAsDataURL(file);
+                document.getElementById("resultSection").classList.remove("show");
+            }
+        }
+
+        // ========================================
+        // 🌾 IDENTIFY CROP
+        // ========================================
+        window.identifyCrop = async function () {
+            const file = imageInput.files[0];
+
+            if (!file) {
+                showError("Please upload an image first");
+                return;
+            }
+
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const identifyBtn = document.getElementById("identifyBtn");
+            const originalText = identifyBtn.innerHTML;
+            identifyBtn.innerHTML = '<span class="loading"></span>Analyzing...';
+            identifyBtn.disabled = true;
+
+            try {
+                const result = await client.predict("/identify_crop", {
+                    image_file: file
+                });
+
+                document.getElementById("result").innerText = result.data;
+                document.getElementById("resultSection").classList.add("show");
+                
+            } catch (error) {
+                console.error("[v0] Identification error:", error);
+                showError("Failed to identify crop. Please try again.");
+            } finally {
+                identifyBtn.innerHTML = originalText;
+                identifyBtn.disabled = false;
+                isProcessing = false;
+            }
+        };
+
+        // ========================================
+        // 💬 CHATBOT
+        // ========================================
+        const CHAT_STORAGE_KEY = 'crop_chat_history';
+        
+        function saveChatHistory() {
+            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(history));
+        }
+
+        function clearChatHistory() {
+            localStorage.removeItem(CHAT_STORAGE_KEY);
+        }
+
+        // Clear chat history on page load - IMPORTANT!
+        clearChatHistory();
+        history = []; // Reset to empty array
+
+        // Initialize empty chatbox
+        const chatbox = document.getElementById("chatbox");
+        chatbox.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💭</div><p>Start a conversation with your farming expert</p></div>';
+        chatbox.classList.add("empty-state");
+
+        window.sendMessage = async function () {
+            const msgInput = document.getElementById("message");
+            const message = msgInput.value.trim();
+
+            if (!message) return;
+
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const chatbox = document.getElementById("chatbox");
+
+            // Remove empty state
+            if (chatbox.classList.contains("empty-state")) {
+                chatbox.innerHTML = "";
+                chatbox.classList.remove("empty-state");
+            }
+
+            // Add user message
+            const userMsg = document.createElement("div");
+            userMsg.className = "chat-message user-message";
+            userMsg.textContent = message;
+            chatbox.appendChild(userMsg);
+
+            msgInput.value = "";
+            chatbox.scrollTop = chatbox.scrollHeight;
+
+            try {
+                // Reconnect client to get fresh session if history is empty
+                if (history.length === 0) {
+                    client = await Client.connect("selva1909/Crop-Prediction");
+                    console.log("[Chat] Fresh connection established");
+                }
+
+                const result = await client.predict("/chat_ui", {
+                    message: message,
+                    history: history
+                });
+
+                history = result.data[0];
+                saveChatHistory();
+                const reply = history[history.length - 1][1];
+
+                const botMsg = document.createElement("div");
+                botMsg.className = "chat-message bot-message";
+                botMsg.textContent = reply;
+                chatbox.appendChild(botMsg);
+
+                chatbox.scrollTop = chatbox.scrollHeight;
+
+            } catch (error) {
+                console.error("[v0] Chat error:", error);
+                const errorMsg = document.createElement("div");
+                errorMsg.className = "chat-message bot-message";
+                errorMsg.innerHTML = `<strong>Error:</strong> Failed to get response. Please try again.`;
+                chatbox.appendChild(errorMsg);
+            } finally {
+                isProcessing = false;
+            }
+        };
+
+        // ========================================
+        // 🔄 RESET FUNCTIONALITY
+        // ========================================
+        window.resetUpload = function () {
+            imageInput.value = "";
+            imagePreview.classList.remove("show");
+            document.getElementById("result").innerText = "";
+            document.getElementById("resultSection").classList.remove("show");
+        };
+
+        window.clearChat = async function () {
+            clearChatHistory();
+            history = [];
+            // Reconnect to get fresh session
+            client = await Client.connect("selva1909/Crop-Prediction");
+            const chatbox = document.getElementById("chatbox");
+            chatbox.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💭</div><p>Start a conversation with your farming expert</p></div>';
+            chatbox.classList.add("empty-state");
+            document.getElementById("message").value = "";
+            console.log("[Chat] Session cleared and reconnected");
+        };
+
+        // ========================================
+        // ⚠️ ERROR HANDLING
+        // ========================================
+        function showError(message) {
+            const resultSection = document.getElementById("resultSection");
+            document.getElementById("result").innerHTML = `<div class="status-badge error">❌ Error</div>\n${message}`;
+            resultSection.classList.add("show");
+        }
+    </script>
+</body>
+</html>
