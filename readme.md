@@ -58,7 +58,6 @@ This project is a web application that provides users with the ability to identi
 - (Placeholder) Instructions on configuring the app and setting environment variables.
 
 
-
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
