@@ -60,5 +60,6 @@ This project is a web application that provides users with the ability to identi
 ## Contributing
 Contributions are welcome! Please follow the guidelines in `CONTRIBUTING.md` for contributing.
 
-## License
-- (Placeholder) Details about the licensing of this project.
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
