@@ -57,7 +57,6 @@ This project is a web application that provides users with the ability to identi
 ## Configuration
 - (Placeholder) Instructions on configuring the app and setting environment variables.
 
-## Contributing
 
 
 ## 📄 License
