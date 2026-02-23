@@ -1,7 +1,5 @@
 # Crop Identification Web App
 
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 ## Overview
 This project is a web application that provides users with the ability to identify various crops based on images or input data. The application consists of a modern frontend built with HTML and JavaScript and a robust backend developed in Python.
 
