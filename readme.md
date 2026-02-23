@@ -58,7 +58,7 @@ This project is a web application that provides users with the ability to identi
 - (Placeholder) Instructions on configuring the app and setting environment variables.
 
 ## Contributing
-Contributions are welcome! Please follow the guidelines in `CONTRIBUTING.md` for contributing.
+
 
 ## 📄 License
 
